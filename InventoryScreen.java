@@ -2,8 +2,8 @@ package ToolManagementSystem;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.List;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 /**
  * Inventory Screen - Display all tools and show detailed information when a tool is selected.
@@ -13,11 +13,11 @@ public class InventoryScreen extends JPanel {
     private JList<Tool> toolList;
     private DefaultListModel<Tool> toolListModel;
     private JLabel toolIdLabel, toolNameLabel, toolTypeLabel, toolAddedDateLabel, toolCostLabel, toolCountLabel, toolOutOfStockLabel;
-    private DataIO dataIO;
+    private ClientAPI clientAPI;
 
-    public InventoryScreen(Main app) {
+    public InventoryScreen(Main app, ClientAPI clientAPI) {
         this.app = app;
-        dataIO = new DataIO();
+        this.clientAPI = clientAPI;
 
         setLayout(new BorderLayout());
         
@@ -81,16 +81,23 @@ public class InventoryScreen extends JPanel {
         // Set size constraints
         listScrollPane.setPreferredSize(new Dimension(800, 300));
 
-        // Load tools from database
+        // Load tools from server
         loadTools();
     }
 
     public void loadTools() {
-        toolListModel.clear();
-        List<Tool> tools = dataIO.fetchTools();
-        for (Tool tool : tools) {
-            toolListModel.addElement(tool);
-        }
+        SwingUtilities.invokeLater(() -> {
+            try {
+                List<Tool> tools = clientAPI.getInventory();
+                toolListModel.clear();
+                for (Tool tool : tools) {
+                    toolListModel.addElement(tool);
+                }
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
+            }
+        });
     }
 
     private void loadToolDetails(Tool tool) {

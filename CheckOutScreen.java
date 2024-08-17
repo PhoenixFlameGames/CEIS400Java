@@ -2,12 +2,11 @@ package ToolManagementSystem;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
 /**
- * Check-Out Tools - Display all available tools, allow tool selection, send checkout info to dataIO
+ * Check-Out Tools - Display all available tools, allow tool selection, send checkout info to ClientAPI
  * 
  * @author mbailey
  */
@@ -17,18 +16,15 @@ class CheckOutScreen extends JPanel {
     private JTextField toolIDField;
     private JTextField toolCountField;
     private Main app;
-    private DataIO dataIO;
+    private ClientAPI clientAPI;
 
-    public CheckOutScreen(Main app) {
+    public CheckOutScreen(Main app, ClientAPI clientAPI) {
         this.app = app;
-        dataIO = new DataIO();
+        this.clientAPI = clientAPI;
 
         setLayout(new BorderLayout());
-        
-        // Set background color
         setBackground(Color.decode("#e0f7fa"));
 
-        // Initialize components
         toolListModel = new DefaultListModel<>();
         toolList = new JList<>(toolListModel);
         toolList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -38,28 +34,23 @@ class CheckOutScreen extends JPanel {
         toolCountField = new JTextField(10);
         toolCountField.setEditable(false);
 
-        JPanel fieldsPanel = new JPanel();
-        fieldsPanel.setLayout(new GridLayout(2, 2));
+        JPanel fieldsPanel = new JPanel(new GridLayout(2, 2));
         fieldsPanel.add(new JLabel("Tool ID:"));
         fieldsPanel.add(toolIDField);
         fieldsPanel.add(new JLabel("Tool Count:"));
         fieldsPanel.add(toolCountField);
 
-        // Create buttons with matching style
         JButton backButton = createStyledButton("Back", e -> app.showScreen("Main Menu"));
         JButton checkOutButton = createStyledButton("Check Out", e -> checkOutTool());
 
-        // Create button panel with GridLayout for equal button sizes
         JPanel buttonsPanel = new JPanel(new GridLayout(1, 2, 5, 5));
         buttonsPanel.add(checkOutButton);
         buttonsPanel.add(backButton);
 
-        // Add components to the main panel
         add(new JScrollPane(toolList), BorderLayout.CENTER);
         add(fieldsPanel, BorderLayout.NORTH);
         add(buttonsPanel, BorderLayout.SOUTH);
 
-        // Add list selection listener
         toolList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 Tool selectedTool = toolList.getSelectedValue();
@@ -70,38 +61,55 @@ class CheckOutScreen extends JPanel {
             }
         });
 
-        // Load tools from database
         loadTools();
     }
 
     private void loadTools() {
-        List<Tool> tools = dataIO.fetchTools();
-        toolListModel.clear();
-        for (Tool tool : tools) {
-            if (!tool.isToolOutOfStockIndicator()) {
-                toolListModel.addElement(tool);
+        try {
+            List<Tool> tools = clientAPI.getInventory();
+            toolListModel.clear();
+            for (Tool tool : tools) {
+                if (!tool.isToolOutOfStockIndicator()) {
+                    toolListModel.addElement(tool);
+                }
             }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();  // Optional: Print stack trace for debugging
         }
     }
 
     private void checkOutTool() {
         Tool selectedTool = toolList.getSelectedValue();
         if (selectedTool != null) {
-            int empID = app.getEmpID();
-            String employeeName = app.getEmployeeName();
-            if (empID != -1) {
-                boolean success = dataIO.checkOutTool(empID, employeeName, selectedTool.getToolID(), "Checked Out");
-                if (success) {
-                    JOptionPane.showMessageDialog(this, "Tool checked out successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    loadTools();
+            try {
+                Employee currentEmployee = app.getCurrentEmployee();
+                if (currentEmployee != null) {
+                    int empID = currentEmployee.getEmpId();
+                    int newCount = selectedTool.getToolCount() - 1;
+                    boolean outOfStock = (newCount <= 0);
+
+                    if (outOfStock) {
+                        selectedTool.setToolOutOfStockIndicator(true);
+                    }
+                    selectedTool.setToolCount(newCount);
+
+                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Checked Out");
+                    if (success) {
+                        JOptionPane.showMessageDialog(this, "Tool checked out successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        loadTools();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Error checking out tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
                 } else {
-                    JOptionPane.showMessageDialog(this, "Error checking out tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Error: Employee not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
-            } else {
-                JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error processing checkout.", "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();  // Optional: Print stack trace for debugging
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Please select an available tool.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No Tool Selected", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

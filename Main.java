@@ -2,17 +2,34 @@ package ToolManagementSystem;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.List;
 
+/**
+ * Main class to initialize the application and manage screen transitions.
+ * 
+ * @author mbailey
+ */
 public class Main extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainPanel;
-    private String employeeName;
-    private int empID;
+    private LoginScreen loginScreen;
     private MainMenuScreen mainMenuScreen;
+    private CheckOutScreen checkOutScreen;
     private CheckInScreen checkInScreen;
     private ToolsLostScreen toolsLostScreen;
     private InventoryScreen inventoryScreen;
     private ToolsRefillScreen toolsRefillScreen;
+    private ClientAPI clientAPI;
+    private Employee currentEmployee; // Declare the currentEmployee
+
+    public static void main(String[] args) {
+        // Create the application instance
+        SwingUtilities.invokeLater(() -> {
+            new Main().setVisible(true);
+        });
+    }    
 
     public Main() {
         setTitle("Tool Management System");
@@ -22,17 +39,22 @@ public class Main extends JFrame {
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
+        // Initialize ClientAPI
+        clientAPI = new ClientAPI();
+
         // Initialize screens
+        loginScreen = new LoginScreen(this, clientAPI);
         mainMenuScreen = new MainMenuScreen(this);
-        checkInScreen = new CheckInScreen(this);
-        toolsLostScreen = new ToolsLostScreen(this);
-        inventoryScreen = new InventoryScreen(this);
-        toolsRefillScreen = new ToolsRefillScreen(this);
+        checkOutScreen = new CheckOutScreen(this, clientAPI);
+        checkInScreen = new CheckInScreen(this, clientAPI);
+        toolsLostScreen = new ToolsLostScreen(this, clientAPI);
+        inventoryScreen = new InventoryScreen(this, clientAPI);
+        toolsRefillScreen = new ToolsRefillScreen(this, clientAPI);
 
         // Adding all screens to the card layout
-        mainPanel.add(new LoginScreen(this), "Login");
+        mainPanel.add(loginScreen, "Login");
         mainPanel.add(mainMenuScreen, "Main Menu");
-        mainPanel.add(new CheckOutScreen(this), "Check-Out");
+        mainPanel.add(checkOutScreen, "Check-Out");
         mainPanel.add(checkInScreen, "Check-In");
         mainPanel.add(toolsLostScreen, "Tools Lost");
         mainPanel.add(toolsRefillScreen, "Tools Refill");
@@ -45,19 +67,18 @@ public class Main extends JFrame {
     public void showScreen(String screenName) {
         switch (screenName) {
             case "Main Menu":
-                mainMenuScreen.updateWelcomeLabel(employeeName);
+                break;
+            case "Check-Out":
                 break;
             case "Check-In":
-                checkInScreen.setEmployeeName(employeeName);
                 break;
             case "Tools Lost":
-                toolsLostScreen.setEmployeeName(employeeName);
                 break;
             case "Inventory Screen":
                 inventoryScreen.loadTools();
                 break;
             case "Tools Refill":
-                toolsRefillScreen.loadLostTools();
+                toolsRefillScreen.loadTools();
                 break;
             default:
                 break;
@@ -65,28 +86,13 @@ public class Main extends JFrame {
         cardLayout.show(mainPanel, screenName);
     }
 
-    public void setEmployeeName(String name) {
-        this.employeeName = name;
+    // Method to set the current employee
+    public void setCurrentEmployee(Employee employee) {
+        this.currentEmployee = employee;
     }
 
-
-    public String getEmployeeName() {
-        return employeeName;
-    }
-    
-    public void setEmpID(int empID) {
-        this.empID = empID;
-    }
-    
-    public int getEmpID() {
-        return empID;
-    }
-
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            Main app = new Main(); // Instantiate Main
-            app.setVisible(true);
-        });
+    // Method to get the current employee
+    public Employee getCurrentEmployee() {
+        return this.currentEmployee;
     }
 }

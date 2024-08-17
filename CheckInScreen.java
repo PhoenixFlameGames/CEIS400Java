@@ -6,7 +6,7 @@ import java.awt.event.ActionListener;
 import java.util.List;
 
 /**
- * Check-In Tools - Display tools and send info to DataIO to increase count
+ * Check-In Tools - Display tools and send info to ApiClient to increase count
  * 
  * @author mbailey
  */
@@ -14,13 +14,14 @@ public class CheckInScreen extends JPanel {
     private JList<Tool> toolList;
     private DefaultListModel<Tool> toolListModel;
     private JTextField toolIDField;
+    private JTextField toolCountField;
     private Main app;
-    private DataIO dataIO;
+    private ClientAPI clientAPI;
     private String employeeName;
 
-    public CheckInScreen(Main app) {
+    public CheckInScreen(Main app, ClientAPI apiClient) {
         this.app = app;
-        dataIO = new DataIO();
+        this.clientAPI = clientAPI;
         setLayout(new BorderLayout());
         
         // Set background color
@@ -33,22 +34,22 @@ public class CheckInScreen extends JPanel {
 
         toolIDField = new JTextField(10);
         toolIDField.setEditable(false);
+        toolCountField = new JTextField(10);
+        toolCountField.setEditable(false);
 
-        JPanel fieldsPanel = new JPanel();
-        fieldsPanel.setLayout(new GridLayout(1, 2));
+        JPanel fieldsPanel = new JPanel(new GridLayout(2, 2));
         fieldsPanel.add(new JLabel("Tool ID:"));
         fieldsPanel.add(toolIDField);
+        fieldsPanel.add(new JLabel("Tool Count:"));
+        fieldsPanel.add(toolCountField);
 
-        // Create buttons with matching style
         JButton backButton = createStyledButton("Back", e -> app.showScreen("Main Menu"));
         JButton checkInButton = createStyledButton("Check In", e -> checkInTool());
 
-        // Create button panel with GridLayout for equal button sizes
         JPanel buttonsPanel = new JPanel(new GridLayout(1, 2, 5, 5));
         buttonsPanel.add(checkInButton);
         buttonsPanel.add(backButton);
 
-        // Add components to the main panel
         add(new JScrollPane(toolList), BorderLayout.CENTER);
         add(fieldsPanel, BorderLayout.NORTH);
         add(buttonsPanel, BorderLayout.SOUTH);
@@ -59,6 +60,7 @@ public class CheckInScreen extends JPanel {
                 Tool selectedTool = toolList.getSelectedValue();
                 if (selectedTool != null) {
                     toolIDField.setText(String.valueOf(selectedTool.getToolID()));
+                    toolCountField.setText(String.valueOf(selectedTool.getToolCount()));
                 }
             }
         });
@@ -73,35 +75,55 @@ public class CheckInScreen extends JPanel {
     }
 
     private void loadCheckedOutTools() {
-        SwingUtilities.invokeLater(() -> {
+        return;
+        
+/*        SwingUtilities.invokeLater(() -> {
             try {
-                List<Tool> tools = dataIO.getCheckedOutTools(employeeName);
+                String jsonResponse = apiClient.getActiveCheckouts();
+                ObjectMapper objectMapper = new ObjectMapper();
+                List<Tool> tools = objectMapper.readValue(jsonResponse, new TypeReference<List<Tool>>(){});
+                
                 toolListModel.clear();
                 for (Tool tool : tools) {
-                    toolListModel.addElement(tool);
+                    if (tool.getEmployeeName().equals(employeeName)) {
+                        toolListModel.addElement(tool);
+                    }
                 }
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Error loading checked-out tools: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
             }
         });
-    }
-
+*/    }
+    
     private void checkInTool() {
         Tool selectedTool = toolList.getSelectedValue();
         if (selectedTool != null) {
-            int empID = app.getEmpID(); // Retrieve the employee ID from the app
-            String employeeName = app.getEmployeeName(); // Retrieve the employee name from the app
+            try {
+                Employee currentEmployee = app.getCurrentEmployee();
+                if (currentEmployee != null) {
+                    int empID = currentEmployee.getEmpId();
+                    int newCount = selectedTool.getToolCount() + 1;
+                    boolean outOfStock = (newCount > 0);
 
-            if (empID != -1) { // Check if a valid employee ID is available
-                boolean success = dataIO.checkInTool(empID, employeeName, selectedTool.getToolID(), "Checked In");
-                if (success) { 
-                    JOptionPane.showMessageDialog(this, "Tool checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    loadCheckedOutTools(); // Reload the list of checked-out tools
+                    if (outOfStock) {
+                        selectedTool.setToolOutOfStockIndicator(false);
+                    }
+                    selectedTool.setToolCount(newCount);
+
+                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Checked In");
+                    if (success) { 
+                        JOptionPane.showMessageDialog(this, "Tool checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        loadCheckedOutTools(); // Reload the list of checked-out tools
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Error checking in the tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
                 } else {
-                    JOptionPane.showMessageDialog(this, "Error checking in the tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
-            } else {
-                JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error checking in the tool: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
             }
         } else {
             JOptionPane.showMessageDialog(this, "Please select a checked-out tool.", "Error", JOptionPane.ERROR_MESSAGE);

@@ -4,14 +4,21 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 /**
- * Login Screen - Passes username and password by user to DataIO for authentication
- * On successful authentication, constructs an Employee object
+ * Login Screen - Passes username and password by user to ClientAPI for authentication
+ * On successful authentication, sets the Employee object in Main
  */
 public class LoginScreen extends JPanel {
+    private final Main app;
+    private final ClientAPI clientApi;
+
     // Constructor
-    public LoginScreen(Main app) {
+    public LoginScreen(Main app, ClientAPI clientApi) {
+        this.app = app;
+        this.clientApi = clientApi;
+        
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -74,21 +81,34 @@ public class LoginScreen extends JPanel {
                 String username = userField.getText();
                 String password = new String(passField.getPassword());
 
-                // Authenticate user
-                DataIO dataIO = new DataIO();
-                boolean isAuthenticated = dataIO.authenticateUser(username, password);
+/*                // Authenticate user
+                try {
+                    List<Employee> employees = clientApi.getEmployees();
+                    Employee matchingEmployee = null;
 
-                if (isAuthenticated) {
-                    // Retrieve additional details to construct Employee object - REMOVE NOTE MARKS WHEN READY TO TEST
-             //       Employee employee = dataIO.getEmployeeDetails(username);
+                    // Check for matching username
+                    for (Employee employee : employees) {
+                        if (employee.getUsername().equals(username)) {
+                            matchingEmployee = employee;
+                            break;
+                        }
+                    }
 
-                    // Set employee details in the app
-             //       app.setEmpID(employee.getEmpID());
-             //       app.setEmployeeName(employee.getEmpFirstName() + " " + employee.getEmpLastName());
-                    app.showScreen("Main Menu");
-                } else {
-                    JOptionPane.showMessageDialog(LoginScreen.this, "Invalid username or password.", "Login Error", JOptionPane.ERROR_MESSAGE);
+                    if (matchingEmployee == null) {
+                        JOptionPane.showMessageDialog(LoginScreen.this, "Incorrect User Name.", "Login Error", JOptionPane.ERROR_MESSAGE);
+                    } else if (!matchingEmployee.getPassword().equals(password)) {
+                        JOptionPane.showMessageDialog(LoginScreen.this, "Incorrect Password.", "Login Error", JOptionPane.ERROR_MESSAGE);
+                    } else {
+                        // Log in Successful
+                        app.setCurrentEmployee(matchingEmployee); // Set the current employee
+                        app.showScreen("Main Menu");
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(LoginScreen.this, "An error occurred while authenticating. Please try again later.", "Error", JOptionPane.ERROR_MESSAGE);
+                    ex.printStackTrace();
                 }
+*/
+            app.showScreen("Main Menu"); //skip authentication for front end testing
             }
         });
     }

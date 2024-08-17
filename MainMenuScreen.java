@@ -14,10 +14,11 @@ public class MainMenuScreen extends JPanel {
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
-        
+
         // Set background color
         setBackground(Color.decode("#e0f7fa"));
 
+        // Initialize welcome label
         welcomeLabel = new JLabel("Welcome, ");
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -70,7 +71,12 @@ public class MainMenuScreen extends JPanel {
         return button;
     }
 
-    public void updateWelcomeLabel(String employeeName) {
-        welcomeLabel.setText("Welcome, " + employeeName);
+    public void updateWelcomeLabel(Employee employee) {
+        if (employee != null) {
+            String fullName = employee.getEmpFirstName() + " " + employee.getEmpLastName();
+            welcomeLabel.setText("Welcome, " + fullName);
+        } else {
+            welcomeLabel.setText("Welcome");
+        }
     }
 }

@@ -2,37 +2,36 @@ package ToolManagementSystem;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
 /**
- * Tools Refill Screen - Display all lost tools and provide an option to order a refill.
+ * Tools Refill Screen - Display all tools and provide an option to order a refill.
  */
 public class ToolsRefillScreen extends JPanel {
     private Main app;
-    private JList<Tool> lostToolsList;
-    private DefaultListModel<Tool> lostToolsListModel;
-    private DataIO dataIO;
+    private JList<Tool> toolList;
+    private DefaultListModel<Tool> toolListModel;
+    private ClientAPI clientAPI;
 
-    public ToolsRefillScreen(Main app) {
+    public ToolsRefillScreen(Main app, ClientAPI clientAPI) {
         this.app = app;
-        dataIO = new DataIO();
+        this.clientAPI = clientAPI;
 
         setLayout(new BorderLayout());
         
         // Set background color
         setBackground(Color.decode("#e0f7fa"));
 
-        lostToolsListModel = new DefaultListModel<>();
-        lostToolsList = new JList<>(lostToolsListModel);
-        lostToolsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        toolListModel = new DefaultListModel<>();
+        toolList = new JList<>(toolListModel);
+        toolList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        JScrollPane listScrollPane = new JScrollPane(lostToolsList);
+        JScrollPane listScrollPane = new JScrollPane(toolList);
 
         // Create buttons with matching style
         JButton orderButton = createStyledButton("Order", e -> {
-            Tool selectedTool = lostToolsList.getSelectedValue();
+            Tool selectedTool = toolList.getSelectedValue();
             if (selectedTool != null) {
                 // Process the refill order
                 if (orderRefill(selectedTool.getToolID())) {
@@ -55,27 +54,58 @@ public class ToolsRefillScreen extends JPanel {
         add(listScrollPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        // Load lost tools from database
-        loadLostTools();
+        // Load tools from ClientAPI
+        loadTools();
     }
 
-    public void loadLostTools() {
-        lostToolsListModel.clear();
-        List<Tool> lostTools = getLostToolsFromDatabase();
-        for (Tool tool : lostTools) {
-            lostToolsListModel.addElement(tool);
+    public void loadTools() {
+        toolListModel.clear();
+        try {
+            List<Tool> tools = clientAPI.getInventory();
+            for (Tool tool : tools) {
+                if (tool.isToolOutOfStockIndicator()) {
+                    toolListModel.addElement(tool);
+                }
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();  // Optional: Print stack trace for debugging
         }
     }
 
-    private List<Tool> getLostToolsFromDatabase() {
-        List<Tool> lostTools = dataIO.fetchTools();
-        //lostTools.removeIf(tool -> !tool.isLost()); - TOOLS ARE BY GROUP NOT INDIVIDUALLY
-        return lostTools;
-    }
-
     private boolean orderRefill(int toolID) {
-        // Need to add tools to Database
-        return true; //To be removed when actual instruction for Ordering is done
+        Tool selectedTool = toolList.getSelectedValue();
+        if (selectedTool != null) {
+            try {
+                Employee currentEmployee = app.getCurrentEmployee();
+                if (currentEmployee != null) {
+                    int empID = currentEmployee.getEmpId();
+                    int newCount = selectedTool.getToolCount() + 1;
+                    boolean outOfStock = (newCount > 0);
+
+                    if (outOfStock) {
+                        selectedTool.setToolOutOfStockIndicator(false);
+                    }
+                    selectedTool.setToolCount(newCount);
+
+                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Ordered");
+                    if (success) { 
+                        JOptionPane.showMessageDialog(this, "Tool ordered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        loadTools(); // Reload the list of tools
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Error checking in the tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error checking in the tool: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select a checked-out tool.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        return true;
     }
 
     private JButton createStyledButton(String text, ActionListener listener) {
