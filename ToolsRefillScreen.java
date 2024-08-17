@@ -1,0 +1,96 @@
+package ToolManagementSystem;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.List;
+
+/**
+ * Tools Refill Screen - Display all lost tools and provide an option to order a refill.
+ */
+public class ToolsRefillScreen extends JPanel {
+    private Main app;
+    private JList<Tool> lostToolsList;
+    private DefaultListModel<Tool> lostToolsListModel;
+    private DataIO dataIO;
+
+    public ToolsRefillScreen(Main app) {
+        this.app = app;
+        dataIO = new DataIO();
+
+        setLayout(new BorderLayout());
+        
+        // Set background color
+        setBackground(Color.decode("#e0f7fa"));
+
+        lostToolsListModel = new DefaultListModel<>();
+        lostToolsList = new JList<>(lostToolsListModel);
+        lostToolsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        JScrollPane listScrollPane = new JScrollPane(lostToolsList);
+
+        // Create buttons with matching style
+        JButton orderButton = createStyledButton("Order", e -> {
+            Tool selectedTool = lostToolsList.getSelectedValue();
+            if (selectedTool != null) {
+                // Process the refill order
+                if (orderRefill(selectedTool.getToolID())) {
+                    JOptionPane.showMessageDialog(this, "Order completed", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Order failed", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "No tool selected.", "Warning", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        JButton backButton = createStyledButton("Back", e -> app.showScreen("Main Menu"));
+
+        // Create button panel with GridLayout for equal button sizes
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 5, 5));
+        buttonPanel.add(orderButton);
+        buttonPanel.add(backButton);
+
+        add(listScrollPane, BorderLayout.CENTER);
+        add(buttonPanel, BorderLayout.SOUTH);
+
+        // Load lost tools from database
+        loadLostTools();
+    }
+
+    public void loadLostTools() {
+        lostToolsListModel.clear();
+        List<Tool> lostTools = getLostToolsFromDatabase();
+        for (Tool tool : lostTools) {
+            lostToolsListModel.addElement(tool);
+        }
+    }
+
+    private List<Tool> getLostToolsFromDatabase() {
+        List<Tool> lostTools = dataIO.fetchTools();
+        //lostTools.removeIf(tool -> !tool.isLost()); - TOOLS ARE BY GROUP NOT INDIVIDUALLY
+        return lostTools;
+    }
+
+    private boolean orderRefill(int toolID) {
+        // Need to add tools to Database
+        return true; //To be removed when actual instruction for Ordering is done
+    }
+
+    private JButton createStyledButton(String text, ActionListener listener) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Arial", Font.BOLD, 14));
+        button.setForeground(Color.WHITE);
+        button.setBackground(new Color(0, 123, 255));
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0, 100, 200), 2),
+            BorderFactory.createEmptyBorder(10, 20, 10, 20)
+        ));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(150, 30));
+        button.addActionListener(listener);
+        return button;
+    }
+}
