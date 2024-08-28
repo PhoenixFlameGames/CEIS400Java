@@ -7,8 +7,29 @@ public class Employee {
     private String emp_job_title;
     private String emp_start_date;
     private boolean emp_checkout_indicator;
-    private String emp_user_name; // Updated to match login
-    private String emp_password;  // Updated to match login
+    private String emp_user_name;
+    private String emp_password;
+
+    // Constructor for the complete employee initialization
+    public Employee(int emp_id, String emp_first_name, String emp_last_name, String emp_job_title,
+                    String emp_start_date, boolean emp_checkout_indicator, String emp_user_name) {
+        this.emp_id = emp_id;
+        this.emp_first_name = emp_first_name;
+        this.emp_last_name = emp_last_name;
+        this.emp_job_title = emp_job_title;
+        this.emp_start_date = emp_start_date;
+        this.emp_checkout_indicator = emp_checkout_indicator;
+        this.emp_user_name = emp_user_name;
+    }
+
+    // Constructor matching the one used in LoginScreen
+    public Employee(int emp_id, String emp_first_name, String emp_last_name, String emp_user_name, String emp_password) {
+        this.emp_id = emp_id;
+        this.emp_first_name = emp_first_name;
+        this.emp_last_name = emp_last_name;
+        this.emp_user_name = emp_user_name;
+        this.emp_password = emp_password;
+    }
 
     // Getters and Setters
     public int getEmpId() {
@@ -59,7 +80,7 @@ public class Employee {
         this.emp_checkout_indicator = emp_checkout_indicator;
     }
 
-    public String getUsername() {  // Renamed getter for consistency with login code
+    public String getUsername() {
         return emp_user_name;
     }
 
@@ -67,7 +88,7 @@ public class Employee {
         this.emp_user_name = emp_user_name;
     }
 
-    public String getPassword() {  // Renamed getter for consistency with login code
+    public String getPassword() {
         return emp_password;
     }
 

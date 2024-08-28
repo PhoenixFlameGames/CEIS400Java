@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tools Refill Screen - Display all tools and provide an option to order a refill.
@@ -12,9 +13,9 @@ public class ToolsRefillScreen extends JPanel {
     private Main app;
     private JList<Tool> toolList;
     private DefaultListModel<Tool> toolListModel;
-    private ClientAPI clientAPI;
+    private ApiClient clientAPI;
 
-    public ToolsRefillScreen(Main app, ClientAPI clientAPI) {
+    public ToolsRefillScreen(Main app, ApiClient clientAPI) {
         this.app = app;
         this.clientAPI = clientAPI;
 
@@ -58,54 +59,39 @@ public class ToolsRefillScreen extends JPanel {
         loadTools();
     }
 
-    public void loadTools() {
-        toolListModel.clear();
-        try {
-            List<Tool> tools = clientAPI.getInventory();
-            for (Tool tool : tools) {
-                if (tool.isToolOutOfStockIndicator()) {
-                    toolListModel.addElement(tool);
+    private void loadTools() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                // Fetch the list of out-of-stock tools from the API
+                Map<String, Object> responseMap = clientAPI.getOutOfStockMaterialsParsed();
+                
+                // Assuming response contains a list of tools
+                List<Tool> tools = (List<Tool>) responseMap.get("tools"); // Adjust as necessary based on actual response structure
+                
+                toolListModel.clear();
+                if (tools != null) {
+                    for (Tool tool : tools) {
+                        toolListModel.addElement(tool);
+                    }
                 }
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error loading tools: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();  // Optional: Print stack trace for debugging
-        }
+        });
     }
 
     private boolean orderRefill(int toolID) {
-        Tool selectedTool = toolList.getSelectedValue();
-        if (selectedTool != null) {
-            try {
-                Employee currentEmployee = app.getCurrentEmployee();
-                if (currentEmployee != null) {
-                    int empID = currentEmployee.getEmpId();
-                    int newCount = selectedTool.getToolCount() + 1;
-                    boolean outOfStock = (newCount > 0);
-
-                    if (outOfStock) {
-                        selectedTool.setToolOutOfStockIndicator(false);
-                    }
-                    selectedTool.setToolCount(newCount);
-
-                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Ordered");
-                    if (success) { 
-                        JOptionPane.showMessageDialog(this, "Tool ordered successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                        loadTools(); // Reload the list of tools
-                    } else {
-                        JOptionPane.showMessageDialog(this, "Error checking in the tool.", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
-                } else {
-                    JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error checking in the tool: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-                e.printStackTrace();
-            }
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select a checked-out tool.", "Error", JOptionPane.ERROR_MESSAGE);
+        try {
+            // Call API to order the refill for the tool
+            Map<String, Object> responseMap = clientAPI.markToolAsReplacedParsed(toolID);
+            
+            // Check if API response indicates success
+            return responseMap.containsKey("success") && (Boolean) responseMap.get("success");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
-        return true;
     }
 
     private JButton createStyledButton(String text, ActionListener listener) {

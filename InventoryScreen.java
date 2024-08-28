@@ -3,7 +3,10 @@ package ToolManagementSystem;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Inventory Screen - Display all tools and show detailed information when a tool is selected.
@@ -12,15 +15,15 @@ public class InventoryScreen extends JPanel {
     private Main app;
     private JList<Tool> toolList;
     private DefaultListModel<Tool> toolListModel;
-    private JLabel toolIdLabel, toolNameLabel, toolTypeLabel, toolAddedDateLabel, toolCostLabel, toolCountLabel, toolOutOfStockLabel;
-    private ClientAPI clientAPI;
+    private JLabel toolIdLabel, toolNameLabel, toolTypeLabel, toolCountLabel, toolOutOfStockLabel;
+    private ApiClient clientAPI;
 
-    public InventoryScreen(Main app, ClientAPI clientAPI) {
+    public InventoryScreen(Main app, ApiClient clientAPI) {
         this.app = app;
         this.clientAPI = clientAPI;
 
         setLayout(new BorderLayout());
-        
+
         // Set background color
         setBackground(Color.decode("#e0f7fa"));
 
@@ -39,7 +42,7 @@ public class InventoryScreen extends JPanel {
         JScrollPane listScrollPane = new JScrollPane(toolList);
         listScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
 
-        JPanel detailPanel = new JPanel(new GridLayout(7, 2, 10, 10));
+        JPanel detailPanel = new JPanel(new GridLayout(5, 2, 10, 10));
         detailPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         detailPanel.add(new JLabel("Tool ID:"));
@@ -53,14 +56,6 @@ public class InventoryScreen extends JPanel {
         detailPanel.add(new JLabel("Tool Type:"));
         toolTypeLabel = new JLabel();
         detailPanel.add(toolTypeLabel);
-
-        detailPanel.add(new JLabel("Added to Inventory Date:"));
-        toolAddedDateLabel = new JLabel();
-        detailPanel.add(toolAddedDateLabel);
-
-        detailPanel.add(new JLabel("Tool Cost:"));
-        toolCostLabel = new JLabel();
-        detailPanel.add(toolCostLabel);
 
         detailPanel.add(new JLabel("Tool Count:"));
         toolCountLabel = new JLabel();
@@ -85,29 +80,34 @@ public class InventoryScreen extends JPanel {
         loadTools();
     }
 
-    public void loadTools() {
-        SwingUtilities.invokeLater(() -> {
-            try {
-                List<Tool> tools = clientAPI.getInventory();
-                toolListModel.clear();
-                for (Tool tool : tools) {
-                    toolListModel.addElement(tool);
-                }
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
-                e.printStackTrace();
+    private void loadTools() {
+        try {
+            // Load all tools from the API as a JSON string
+            String inventoryJson = clientAPI.getInventory();
+            JSONArray inventoryArray = new JSONArray(inventoryJson);
+            List<Tool> tools = new ArrayList<>();
+
+            // Convert JSON objects to Tool instances
+            for (int i = 0; i < inventoryArray.length(); i++) {
+                JSONObject item = inventoryArray.getJSONObject(i);
+                Tool tool = Tool.fromJson(item);
+                tools.add(tool);
             }
-        });
+
+            toolListModel.clear();
+            toolListModel.addAll(tools);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();  // Optional: Print stack trace for debugging
+        }
     }
 
     private void loadToolDetails(Tool tool) {
         toolIdLabel.setText(String.valueOf(tool.getToolID()));
         toolNameLabel.setText(tool.getToolName());
         toolTypeLabel.setText(tool.getToolType());
-        toolAddedDateLabel.setText(tool.getToolAddedToInventoryDate() != null ? tool.getToolAddedToInventoryDate().toString() : "N/A");
-        toolCostLabel.setText(tool.getToolCost() != null ? String.format("%.2f", tool.getToolCost()) : "N/A");
         toolCountLabel.setText(String.valueOf(tool.getToolCount()));
-        toolOutOfStockLabel.setText(tool.isToolOutOfStockIndicator() ? "Yes" : "No");
+        toolOutOfStockLabel.setText(tool.isOutOfStockIndicator() ? "Yes" : "No");
     }
 
     private JButton createStyledButton(String text, ActionListener listener) {

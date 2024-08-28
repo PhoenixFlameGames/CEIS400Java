@@ -3,12 +3,13 @@ package ToolManagementSystem;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Check-Out Tools - Display all available tools, allow tool selection, send checkout info to ClientAPI
- * 
- * @author mbailey
  */
 class CheckOutScreen extends JPanel {
     private JList<Tool> toolList;
@@ -16,9 +17,9 @@ class CheckOutScreen extends JPanel {
     private JTextField toolIDField;
     private JTextField toolCountField;
     private Main app;
-    private ClientAPI clientAPI;
+    private ApiClient clientAPI;
 
-    public CheckOutScreen(Main app, ClientAPI clientAPI) {
+    public CheckOutScreen(Main app, ApiClient clientAPI) {
         this.app = app;
         this.clientAPI = clientAPI;
 
@@ -66,13 +67,20 @@ class CheckOutScreen extends JPanel {
 
     private void loadTools() {
         try {
-            List<Tool> tools = clientAPI.getInventory();
-            toolListModel.clear();
-            for (Tool tool : tools) {
-                if (!tool.isToolOutOfStockIndicator()) {
-                    toolListModel.addElement(tool);
-                }
+            // Load all tools from the API as a JSON string
+            String inventoryJson = clientAPI.getInventory();
+            JSONArray inventoryArray = new JSONArray(inventoryJson);
+            List<Tool> tools = new ArrayList<>();
+
+            // Convert JSON objects to Tool instances
+            for (int i = 0; i < inventoryArray.length(); i++) {
+                JSONObject item = inventoryArray.getJSONObject(i);
+                Tool tool = Tool.fromJson(item);
+                tools.add(tool);
             }
+
+            toolListModel.clear();
+            toolListModel.addAll(tools);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error loading tools from server.", "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();  // Optional: Print stack trace for debugging
@@ -86,21 +94,13 @@ class CheckOutScreen extends JPanel {
                 Employee currentEmployee = app.getCurrentEmployee();
                 if (currentEmployee != null) {
                     int empID = currentEmployee.getEmpId();
-                    int newCount = selectedTool.getToolCount() - 1;
-                    boolean outOfStock = (newCount <= 0);
+                    int toolID = selectedTool.getToolID();
 
-                    if (outOfStock) {
-                        selectedTool.setToolOutOfStockIndicator(true);
-                    }
-                    selectedTool.setToolCount(newCount);
+                    // Call API to check out the tool
+                    clientAPI.checkoutItem(empID, toolID, null, 1);
 
-                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Checked Out");
-                    if (success) {
-                        JOptionPane.showMessageDialog(this, "Tool checked out successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                        loadTools();
-                    } else {
-                        JOptionPane.showMessageDialog(this, "Error checking out tool.", "Error", JOptionPane.ERROR_MESSAGE);
-                    }
+                    JOptionPane.showMessageDialog(this, "Tool checked out successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    loadTools();  // Reload tools to reflect the updated count
                 } else {
                     JOptionPane.showMessageDialog(this, "Error: Employee not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }

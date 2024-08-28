@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Check-In Tools - Display tools and send info to ApiClient to increase count
@@ -16,10 +17,9 @@ public class CheckInScreen extends JPanel {
     private JTextField toolIDField;
     private JTextField toolCountField;
     private Main app;
-    private ClientAPI clientAPI;
-    private String employeeName;
+    private ApiClient clientAPI;
 
-    public CheckInScreen(Main app, ClientAPI apiClient) {
+    public CheckInScreen(Main app, ApiClient clientAPI) {
         this.app = app;
         this.clientAPI = clientAPI;
         setLayout(new BorderLayout());
@@ -65,27 +65,22 @@ public class CheckInScreen extends JPanel {
             }
         });
 
-        // Load checked-out tools for the specific user
-        loadCheckedOutTools();
-    }
-
-    public void setEmployeeName(String employeeName) {
-        this.employeeName = employeeName;
+        // Load checked-out tools
         loadCheckedOutTools();
     }
 
     private void loadCheckedOutTools() {
-        return;
-        
-/*        SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater(() -> {
             try {
-                String jsonResponse = apiClient.getActiveCheckouts();
-                ObjectMapper objectMapper = new ObjectMapper();
-                List<Tool> tools = objectMapper.readValue(jsonResponse, new TypeReference<List<Tool>>(){});
+                // Fetch the list of active checkouts from the API
+                Map<String, Object> responseMap = clientAPI.getActiveCheckoutsParsed();
+                
+                // Assuming response contains a list of tools
+                List<Tool> tools = (List<Tool>) responseMap.get("tools"); // Adjust as necessary based on actual response structure
                 
                 toolListModel.clear();
-                for (Tool tool : tools) {
-                    if (tool.getEmployeeName().equals(employeeName)) {
+                if (tools != null) {
+                    for (Tool tool : tools) {
                         toolListModel.addElement(tool);
                     }
                 }
@@ -94,8 +89,8 @@ public class CheckInScreen extends JPanel {
                 e.printStackTrace();
             }
         });
-*/    }
-    
+    }
+
     private void checkInTool() {
         Tool selectedTool = toolList.getSelectedValue();
         if (selectedTool != null) {
@@ -103,37 +98,36 @@ public class CheckInScreen extends JPanel {
                 Employee currentEmployee = app.getCurrentEmployee();
                 if (currentEmployee != null) {
                     int empID = currentEmployee.getEmpId();
+                    int toolID = selectedTool.getToolID();
                     int newCount = selectedTool.getToolCount() + 1;
-                    boolean outOfStock = (newCount > 0);
 
-                    if (outOfStock) {
-                        selectedTool.setToolOutOfStockIndicator(false);
-                    }
-                    selectedTool.setToolCount(newCount);
-
-                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Checked In");
-                    if (success) { 
+                    // Call API to check in the tool
+                    Map<String, Object> responseMap = clientAPI.checkinItemParsed(empID, toolID, null, 1);
+                    
+                    // Check if API response indicates success
+                    if (responseMap.containsKey("success") && (Boolean) responseMap.get("success")) {
+                        selectedTool.setToolCount(newCount);
                         JOptionPane.showMessageDialog(this, "Tool checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                        loadCheckedOutTools(); // Reload the list of checked-out tools
+                        loadCheckedOutTools();  // Reload tools to reflect the updated count
                     } else {
-                        JOptionPane.showMessageDialog(this, "Error checking in the tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Error checking in tool.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                 } else {
-                    JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "Error: Employee not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error checking in the tool: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error processing check-in.", "Error", JOptionPane.ERROR_MESSAGE);
+                e.printStackTrace();  // Optional: Print stack trace for debugging
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Please select a checked-out tool.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No Tool Selected", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private JButton createStyledButton(String text, ActionListener listener) {
         JButton button = new JButton(text);
         button.setFont(new Font("Arial", Font.BOLD, 14));
-        button.setForeground(Color.WHITE); // Text color
+        button.setForeground(Color.WHITE);
         button.setBackground(new Color(0, 123, 255));
         button.setFocusPainted(false);
         button.setBorder(BorderFactory.createCompoundBorder(

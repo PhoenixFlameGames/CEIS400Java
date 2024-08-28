@@ -4,11 +4,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Check-In Tools - Display tools and send info to ApiClient to increase count
+ * Report Lost Tools - Display checked-out tools and send info to ApiClient to report them as lost.
  * 
- * @author mbailey
+ * @author 
  */
 public class ToolsLostScreen extends JPanel {
     private JList<Tool> toolList;
@@ -16,10 +17,10 @@ public class ToolsLostScreen extends JPanel {
     private JTextField toolIDField;
     private JTextField toolCountField;
     private Main app;
-    private ClientAPI clientAPI;
+    private ApiClient clientAPI;
     private String employeeName;
 
-    public ToolsLostScreen(Main app, ClientAPI apiClient) {
+    public ToolsLostScreen(Main app, ApiClient clientAPI) {
         this.app = app;
         this.clientAPI = clientAPI;
         setLayout(new BorderLayout());
@@ -44,10 +45,10 @@ public class ToolsLostScreen extends JPanel {
         fieldsPanel.add(toolCountField);
 
         JButton backButton = createStyledButton("Back", e -> app.showScreen("Main Menu"));
-        JButton checkInButton = createStyledButton("Report Lost", e -> reportLost());
+        JButton reportLostButton = createStyledButton("Report Lost", e -> reportLost());
 
         JPanel buttonsPanel = new JPanel(new GridLayout(1, 2, 5, 5));
-        buttonsPanel.add(checkInButton);
+        buttonsPanel.add(reportLostButton);
         buttonsPanel.add(backButton);
 
         add(new JScrollPane(toolList), BorderLayout.CENTER);
@@ -75,17 +76,17 @@ public class ToolsLostScreen extends JPanel {
     }
 
     private void loadCheckedOutTools() {
-        return;
-        
-/*        SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater(() -> {
             try {
-                String jsonResponse = apiClient.getActiveCheckouts();
-                ObjectMapper objectMapper = new ObjectMapper();
-                List<Tool> tools = objectMapper.readValue(jsonResponse, new TypeReference<List<Tool>>(){});
+                // Fetch the list of active checkouts from the API
+                Map<String, Object> responseMap = clientAPI.getActiveCheckoutsParsed();
+                
+                // Assuming response contains a list of tools
+                List<Tool> tools = (List<Tool>) responseMap.get("tools"); // Adjust as necessary based on actual response structure
                 
                 toolListModel.clear();
-                for (Tool tool : tools) {
-                    if (tool.getEmployeeName().equals(employeeName)) {
+                if (tools != null) {
+                    for (Tool tool : tools) {
                         toolListModel.addElement(tool);
                     }
                 }
@@ -94,35 +95,31 @@ public class ToolsLostScreen extends JPanel {
                 e.printStackTrace();
             }
         });
-*/    }
-    
+    }
+
     private void reportLost() {
         Tool selectedTool = toolList.getSelectedValue();
         if (selectedTool != null) {
             try {
                 Employee currentEmployee = app.getCurrentEmployee();
                 if (currentEmployee != null) {
-                    int empID = currentEmployee.getEmpId();
-                    int newCount = selectedTool.getToolCount() - 1;
-                    boolean outOfStock = (newCount <= 0);
+                    int toolID = selectedTool.getToolID();
 
-                    if (outOfStock) {
-                        selectedTool.setToolOutOfStockIndicator(true);
-                    }
-                    selectedTool.setToolCount(newCount);
-
-                    boolean success = clientAPI.sendTransaction(empID, selectedTool.getToolID(), "Lost");
-                    if (success) { 
-                        JOptionPane.showMessageDialog(this, "Tool checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    // Call API to report the tool as lost
+                    Map<String, Object> responseMap = clientAPI.reportLostToolParsed(toolID);
+                    
+                    // Check if API response indicates success
+                    if (responseMap.containsKey("success") && (Boolean) responseMap.get("success")) {
+                        JOptionPane.showMessageDialog(this, "Tool reported as lost successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                         loadCheckedOutTools(); // Reload the list of checked-out tools
                     } else {
-                        JOptionPane.showMessageDialog(this, "Error checking in the tool.", "Error", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Error reporting the tool as lost.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                 } else {
                     JOptionPane.showMessageDialog(this, "Error: Employee ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error checking in the tool: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Error reporting the tool as lost: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 e.printStackTrace();
             }
         } else {

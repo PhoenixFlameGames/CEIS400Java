@@ -4,18 +4,18 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.List;
+import java.util.Map;
 
 /**
- * Login Screen - Passes username and password by user to ClientAPI for authentication
- * On successful authentication, sets the Employee object in Main
+ * Login Screen - Passes username and password by user to ApiClient for authentication.
+ * On successful authentication, sets the Employee object in Main.
  */
 public class LoginScreen extends JPanel {
     private final Main app;
-    private final ClientAPI clientApi;
+    private final ApiClient clientApi;
 
     // Constructor
-    public LoginScreen(Main app, ClientAPI clientApi) {
+    public LoginScreen(Main app, ApiClient clientApi) {
         this.app = app;
         this.clientApi = clientApi;
         
@@ -81,34 +81,29 @@ public class LoginScreen extends JPanel {
                 String username = userField.getText();
                 String password = new String(passField.getPassword());
 
-/*                // Authenticate user
+                // Authenticate user
                 try {
-                    List<Employee> employees = clientApi.getEmployees();
-                    Employee matchingEmployee = null;
+                    Map<String, Object> response = clientApi.loginEmployeeParsed(username, password);
+                    boolean success = (boolean) response.get("success");
 
-                    // Check for matching username
-                    for (Employee employee : employees) {
-                        if (employee.getUsername().equals(username)) {
-                            matchingEmployee = employee;
-                            break;
-                        }
-                    }
-
-                    if (matchingEmployee == null) {
-                        JOptionPane.showMessageDialog(LoginScreen.this, "Incorrect User Name.", "Login Error", JOptionPane.ERROR_MESSAGE);
-                    } else if (!matchingEmployee.getPassword().equals(password)) {
-                        JOptionPane.showMessageDialog(LoginScreen.this, "Incorrect Password.", "Login Error", JOptionPane.ERROR_MESSAGE);
-                    } else {
-                        // Log in Successful
-                        app.setCurrentEmployee(matchingEmployee); // Set the current employee
+                    if (success) {
+                        // Assuming response contains employee details if authentication is successful
+                        Employee employee = new Employee(
+                                (int) response.get("emp_ID"),
+                                (String) response.get("first_name"),
+                                (String) response.get("last_name"),
+                                (String) response.get("username"),
+                                null // Password not needed to be stored in the Employee object
+                        );
+                        app.setCurrentEmployee(employee); // Set the current employee
                         app.showScreen("Main Menu");
+                    } else {
+                        JOptionPane.showMessageDialog(LoginScreen.this, response.get("message"), "Login Error", JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(LoginScreen.this, "An error occurred while authenticating. Please try again later.", "Error", JOptionPane.ERROR_MESSAGE);
                     ex.printStackTrace();
                 }
-*/
-            app.showScreen("Main Menu"); //skip authentication for front end testing
             }
         });
     }
