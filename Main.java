@@ -21,7 +21,7 @@ public class Main extends JFrame {
     private ToolsLostScreen toolsLostScreen;
     private InventoryScreen inventoryScreen;
     private ToolsRefillScreen toolsRefillScreen;
-    private ClientAPI clientAPI;
+    private ApiClient clientAPI;
     private Employee currentEmployee; // Declare the currentEmployee
 
     public static void main(String[] args) {
@@ -40,7 +40,7 @@ public class Main extends JFrame {
         mainPanel = new JPanel(cardLayout);
 
         // Initialize ClientAPI
-        clientAPI = new ClientAPI();
+        clientAPI = new ApiClient();
 
         // Initialize screens
         loginScreen = new LoginScreen(this, clientAPI);
@@ -65,24 +65,6 @@ public class Main extends JFrame {
     }
 
     public void showScreen(String screenName) {
-        switch (screenName) {
-            case "Main Menu":
-                break;
-            case "Check-Out":
-                break;
-            case "Check-In":
-                break;
-            case "Tools Lost":
-                break;
-            case "Inventory Screen":
-                inventoryScreen.loadTools();
-                break;
-            case "Tools Refill":
-                toolsRefillScreen.loadTools();
-                break;
-            default:
-                break;
-        }
         cardLayout.show(mainPanel, screenName);
     }
 
